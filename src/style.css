@@ -1,0 +1,402 @@
+/* ============================= */
+/* FUENTES */
+/* ============================= */
+
+@font-face {
+  font-family: "fuente1";
+  src: url("/fonts/NewYork.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Fuentecute1";
+  src: url("/fonts/Classyvogueregular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Fuentecute2";
+  src: url("/fonts/FeFCrm2.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Fuentecute3";
+  src: url("/fonts/Mermaid1001.ttf") format("truetype");
+}
+
+
+/* ============================= */
+/* RESET */
+/* ============================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+}
+
+body {
+  background-color: #381932;
+  color: white;
+  font-family: "fuente1", serif;
+}
+
+
+/* ============================= */
+/* CONTAINER */
+/* ============================= */
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ============================= */
+/* HEADER */
+/* ============================= */
+
+.header {
+  display: flex;
+  justify-content: center; /* centra logo + botones horizontalmente */
+  align-items: center;     /* centra verticalmente */
+  gap: 40px;               /* espacio entre logo y botones */
+  padding: 20px 0;
+  border-bottom: 1px solid white; /* línea de separación */
+}
+
+.logo-home {
+  width: 70px;   /* ancho fijo */
+  height: 70px;  /* alto fijo */
+  object-fit: contain; /* asegura que la imagen no se deforme */
+  cursor: pointer;
+  flex-shrink: 0; /* evita que se reduzca si el contenedor se achica */
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 35px; /* espacio entre botones */
+}
+
+.nav-buttons button {
+  padding: 10px 40px;
+  border: 2px solid white; /* solo borde */
+  background: transparent;  /* sin relleno */
+  color: white;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 18px;
+  font-family: "fuente1", serif; /* tu fuente custom */
+  transition: 0.3s;
+}
+
+.nav-buttons button:hover {
+  color: #c9c49c;        /* cambia color del texto */
+  border-color: #c9c49c; /* cambia borde */
+}
+
+
+/* ============================= */
+/* MAIN (2 COLUMNAS) */
+/* ============================= */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 0 80px;
+}
+
+.top-block {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.text-block {
+  text-align: center;
+}
+
+.uni-block {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+.linea-vertical {
+  width: 2px;
+  height: 150px;
+  margin-top: 30px; 
+  background: white
+}
+
+/* IZQUIERDA */
+.left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.logo {
+  width: 160px;
+  margin-bottom: 30px;
+  margin-top: 60px;   /* aquí controlas la separación real */
+  text-align: center;
+}
+
+.universidad {
+  font-size: 28px;
+  letter-spacing: 3px;
+  margin-top:60px; 
+}
+
+.catolica {
+  font-size: 52px;
+  font-weight: 600;
+  letter-spacing: 4px;
+}
+
+.boliviana {
+  font-size: 30px;
+  letter-spacing: 2px;
+  margin-bottom: 30px;
+}
+
+.course {
+  margin-top: 20px; 
+  text-align: center;
+}
+
+.course h2 {
+  font-size: 24px;
+  text-align: center;
+  margin-top: 10px; 
+  font-family:'Times New Roman', Times, serif
+}
+
+.course h3 {
+  font-size: 20px;
+  text-align: center;
+  margin-top: 20px; 
+  font-family:'Times New Roman', Times, serif
+}
+
+
+/* DERECHA */
+.right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+
+.grafo {
+  max-width: 100%;
+  max-width: 830px; /* tamaño máximo para no estirarse demasiado */
+  height: auto;
+}
+
+
+/* ============================= */
+/* FOOTER */
+/* ============================= */
+.footer {
+  position: relative;
+  padding: 20px 60px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: white;
+}
+
+
+/* ============================= */
+/* RESPONSIVE */
+/* ============================= */
+@media (max-width: 900px) {
+
+  .main {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .grafo {
+    width: 250px;
+    margin-top: 40px;
+  }
+}
+
+/* ============================= */
+/* ACERCA FULL WIDTH ELEGANTE */
+/* ============================= */
+
+.acerca-section {
+  padding: 80px 120px;
+  font-family: "Times New Roman", Times, serif;
+}
+
+/* Header */
+.acerca-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 40px;
+}
+
+.acerca-header h1 {
+  font-size: 54px;
+  letter-spacing: 5px;
+  font-weight: 500;
+}
+
+.linea-separadora {
+  width: 100%;
+  height: 1px;
+  background: rgba(255,255,255,0.4);
+  margin: 40px 0;
+}
+
+/* Bloques horizontales */
+.bloque-horizontal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 60px;
+}
+
+.bloque-horizontal.invertido {
+  flex-direction: row-reverse;
+}
+
+.texto {
+  flex: 1;
+}
+
+.texto h2 {
+  font-size: 30px;
+  margin-bottom: 15px;
+  letter-spacing: 2px;
+}
+
+.texto p {
+  font-size: 19px;
+  margin-bottom: 15px;
+  line-height: 1.7;
+  text-align: justify;
+}
+
+/* Imagen lateral */
+.imagen-lateral {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.imagen-lateral img {
+  max-width: 450px;
+  width: 100%;
+  border-radius: 10px;
+  opacity: 0.95;
+  transition: 0.3s ease;
+}
+
+.imagen-lateral img:hover {
+  transform: scale(1.03);
+  opacity: 1;
+}
+
+/* Bloque vertical */
+.bloque-vertical {
+  text-align: center;
+  max-width: 900px;
+  margin: auto;
+}
+
+.bloque-vertical h2 {
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+
+.bloque-vertical p {
+  font-size: 19px;
+  margin-bottom: 15px;
+}
+
+/* Video */
+.video-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.video-container iframe {
+  width: 750px;
+  height: 420px;
+  border-radius: 12px;
+}
+
+/* Responsive */
+@media (max-width: 1000px) {
+  .bloque-horizontal {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .bloque-horizontal.invertido {
+    flex-direction: column;
+  }
+
+  .acerca-section {
+    padding: 60px 40px;
+  }
+}
+
+
+.botones-finales {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 40px;  /* separa los botones del contenido */
+  padding: 0 40px 50px 40px;
+}
+
+.boton-volver,
+.boton-crear {
+  padding: 10px 40px;
+  border: 2px solid white;
+  background: transparent;
+  color: white;
+  border-radius: 30px;
+  cursor: pointer;
+  font-size: 16px;
+  font-family: "Times New Roman", Times, serif;
+  transition: all 0.3s ease;
+  text-decoration: none; /* importante para router-link */
+  display: inline-block; /* para que se comporten como botones */
+}
+
+.boton-volver:hover,
+.boton-crear:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-3px);
+}
