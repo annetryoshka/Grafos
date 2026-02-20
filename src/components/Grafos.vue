@@ -1,7 +1,6 @@
 <template>
-   <div class="contenedor">
+  <div class="contenedor">
 
-    <!-- HEADER -->
     <div class="header">
       
       <div class="header-left">
@@ -13,21 +12,21 @@
         <button @click="modo = 'unir'">Unir vértices</button>
         <button @click="modo = 'eliminar'">Eliminar</button>
         <button @click="borrarTodo">Borrar todo</button>
+
+        <div class="opcion-grafo">
+          <span class="label-texto">{{ dirigido ? "Dirigido" : "No dirigido" }}</span>
+          <label class="switch">
+            <input type="checkbox" v-model="dirigido">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="header-right">
         <a href="/">Volver al inicio</a>
       </div>
 
-      <button @click="dirigido = !dirigido">
-      {{ dirigido ? "Dirigido" : "No dirigido" }}
-        </button>
-
-
-  </div>
-
-    <!-- LIENZO -->
-    <div
+    </div> <div
       class="lienzo"
       :class="{
         cursorCrear: modo === 'crear',
@@ -55,44 +54,19 @@
       <svg class="svg-lineas">
     <defs>
       <marker
-      id="arrow"
-      viewBox="0 0 10 10"
-      refX="9"
-      refY="5"
-      markerWidth="8"
-      markerHeight="8"
-      orient="auto-start-reverse"
-    >
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="white"/>
+  id="arrow"
+  viewBox="0 0 10 10"
+  refX="10" 
+  refY="5"
+  markerWidth="6"
+  markerHeight="6"
+  orient="auto-start-reverse"
+>
+  <path d="M 0 0 L 10 5 L 0 10 z" fill="white"/>
 </marker>
+
     </defs>
     <g v-for="(arista, index) in aristas" :key="index">
-
-  <!-- BUCLE -->
-  <template v-if="arista.origen === arista.destino">
-    <circle
-      :cx="vertices[arista.origen].x"
-      :cy="vertices[arista.origen].y - 30"
-      r="20"
-      stroke="white"
-      fill="transparent"
-      stroke-width="2"
-    />
-
-    <!-- PESO DEL BUCLE -->
-    <text
-      :x="vertices[arista.origen].x"
-      :y="vertices[arista.origen].y - 55"
-      fill="white"
-      font-size="14"
-      text-anchor="middle"
-    >
-      {{ arista.peso }}
-    </text>
-  </template>
-
-  <!-- ARISTA NORMAL -->
-  <template v-else>
   <path
     :d="calcularCurva(arista)"
     stroke="white"
@@ -103,18 +77,16 @@
     style="pointer-events: stroke;"
   />
 
-  <!-- PESO -->
   <text
     :x="calcularPuntoPeso(arista).x"
     :y="calcularPuntoPeso(arista).y"
     fill="white"
     font-size="14"
     text-anchor="middle"
+    style="paint-order: stroke; stroke: #381932; stroke-width: 4px;"
   >
     {{ arista.peso }}
   </text>
-</template>
-
 </g>
       </svg>
 
@@ -375,34 +347,50 @@ calcularY2(arista) {
 }, 
 
 calcularCurva(arista) {
-  // 1. CASO BUCLE: Si el origen y destino son iguales
+  const v1 = this.vertices[arista.origen];
+  const v2 = this.vertices[arista.destino];
+  if (!v1 || !v2) return "";
+
+  const radio = 20; // Ajusta según el tamaño real de tus vértices en px
+
+  // --- CASO BUCLE (Estilo Oreja) ---
   if (arista.origen === arista.destino) {
-    const v = this.vertices[arista.origen];
-    // Usamos una curva de Bézier cúbica (C) para crear la "orejita" del bucle
-    return `M ${v.x} ${v.y} C ${v.x - 40} ${v.y - 80}, ${v.x + 40} ${v.y - 80}, ${v.x} ${v.y}`;
+    // Puntos de salida y entrada en el borde superior
+    const xSalida = v1.x + 8;
+    const ySalida = v1.y - 18;
+    const xEntrada = v1.x - 8;
+    const yEntrada = v1.y - 18;
+
+    // Puntos de control para hacer la curva redonda arriba
+    return `M ${xSalida} ${ySalida} 
+            C ${xSalida + 25} ${ySalida - 45}, 
+              ${xEntrada - 25} ${yEntrada - 45}, 
+              ${xEntrada} ${yEntrada}`;
   }
 
-  // 2. CASO ARISTA NORMAL: Si son vértices distintos
-  // (Este código solo se ejecuta si la condición de arriba es falsa)
-  const p1 = this.calcularPuntoBorde(arista.origen, arista.destino);
-  const p2 = this.calcularPuntoBorde(arista.destino, arista.origen);
+  // --- CASO ARISTA NORMAL (Borde a Borde) ---
+  const dx = v2.x - v1.x;
+  const dy = v2.y - v1.y;
+  const distancia = Math.sqrt(dx * dx + dy * dy);
+  const angulo = Math.atan2(dy, dx);
 
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
+  // Calculamos el punto exacto en el borde del círculo de destino
+  // Restamos un pequeño margen extra (radio + 5) para que la punta de la flecha no toque el borde
+  const destinoX = v2.x - Math.cos(angulo) * radio;
+  const destinoY = v2.y - Math.sin(angulo) * radio;
+  
+  const origenX = v1.x + Math.cos(angulo) * radio;
+  const origenY = v1.y + Math.sin(angulo) * radio;
 
-  const mx = (p1.x + p2.x) / 2;
-  const my = (p1.y + p2.y) / 2;
+  // Punto de control para la curva (Q)
+  const mx = (origenX + destinoX) / 2;
+  const my = (origenY + destinoY) / 2;
+  const offset = 20; 
+  
+  const controlX = mx + (-(destinoY - origenY) / distancia) * offset;
+  const controlY = my + ((destinoX - origenX) / distancia) * offset;
 
-  const offset = 30; // Curvatura de la línea
-
-  const normalX = -dy;
-  const normalY = dx;
-  const length = Math.sqrt(normalX * normalX + normalY * normalY) || 1;
-
-  const controlX = mx + (normalX / length) * offset;
-  const controlY = my + (normalY / length) * offset;
-
-  return `M ${p1.x} ${p1.y} Q ${controlX} ${controlY} ${p2.x} ${p2.y}`;
+  return `M ${origenX} ${origenY} Q ${controlX} ${controlY} ${destinoX} ${destinoY}`;
 },
 
 calcularPuntoPeso(arista) {
@@ -660,6 +648,71 @@ body {
   color: #c9c49c;
   border-radius: 20px;
   cursor: pointer;
+}
+
+/* Nuevo estilo para el interruptor de Grafo Dirigido */
+.opcion-grafo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.08); /* Fondo sutil */
+  padding: 5px 18px;
+  border-radius: 30px;
+  border: 1px solid rgba(201, 196, 156, 0.4);
+  margin-left: 10px;
+}
+
+.label-texto {
+  font-family: fuente1, serif;
+  font-size: 18px;
+  color: #c9c49c;
+  min-width: 100px;
+  text-align: center;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #351125;
+  transition: .4s;
+  border-radius: 34px;
+  border: 1px solid #c9c49c;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #c9c49c;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #e6708c; /* Color rosa de tus vértices */
+  border-color: white;
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+  background-color: white;
 }
 
 /* ANIMACIONES */
