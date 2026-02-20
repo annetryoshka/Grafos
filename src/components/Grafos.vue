@@ -19,6 +19,10 @@
         <a href="/">Volver al inicio</a>
       </div>
 
+      <button @click="dirigido = !dirigido">
+      {{ dirigido ? "Dirigido" : "No dirigido" }}
+        </button>
+
 
   </div>
 
@@ -31,33 +35,87 @@
         cursorEliminar: modo === 'eliminar'
       }"
       @click="clickLienzo"
+      @mouseup="mouseupLienzo"
+      @mousemove="mousemoveLienzo"
     >
+
+
+  <div v-if="mostrarModalNombre" class="modal-overlay">
+  <div class="modal" @click.stop>
+    <h3>Nombre del vértice</h3>
+    <input v-model="nombreTemporal" type="text" />
+    <div class="modal-botones">
+      <button @click.stop="confirmarNombre">Crear</button>
+      <button @click.stop="cancelarNombre">Cancelar</button>
+    </div>
+  </div>
+</div>
 
       <!-- SVG -->
       <svg class="svg-lineas">
-        <g v-for="(arista, index) in aristas" :key="index">
+    <defs>
+      <marker
+      id="arrow"
+      viewBox="0 0 10 10"
+      refX="9"
+      refY="5"
+      markerWidth="8"
+      markerHeight="8"
+      orient="auto-start-reverse"
+    >
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="white"/>
+</marker>
+    </defs>
+    <g v-for="(arista, index) in aristas" :key="index">
 
-          <line
-            :x1="vertices[arista.origen].x"
-            :y1="vertices[arista.origen].y"
-            :x2="vertices[arista.destino].x"
-            :y2="vertices[arista.destino].y"
-            stroke="white"
-            stroke-width="2"
-            @click.stop="clickArista(index)"
-            style="pointer-events: all;"
-          />
+  <!-- BUCLE -->
+  <template v-if="arista.origen === arista.destino">
+    <circle
+      :cx="vertices[arista.origen].x"
+      :cy="vertices[arista.origen].y - 30"
+      r="20"
+      stroke="white"
+      fill="transparent"
+      stroke-width="2"
+    />
 
-          <text
-            :x="(vertices[arista.origen].x + vertices[arista.destino].x)/2"
-            :y="(vertices[arista.origen].y + vertices[arista.destino].y)/2"
-            fill="white"
-            font-size="14"
-          >
-            {{ arista.peso }}
-          </text>
+    <!-- PESO DEL BUCLE -->
+    <text
+      :x="vertices[arista.origen].x"
+      :y="vertices[arista.origen].y - 55"
+      fill="white"
+      font-size="14"
+      text-anchor="middle"
+    >
+      {{ arista.peso }}
+    </text>
+  </template>
 
-        </g>
+  <!-- ARISTA NORMAL -->
+  <template v-else>
+  <path
+    :d="calcularCurva(arista)"
+    stroke="white"
+    fill="transparent"
+    stroke-width="2"
+    :marker-end="arista.dirigido ? 'url(#arrow)' : ''"
+    @click.stop="clickArista(index)"
+    style="pointer-events: stroke;"
+  />
+
+  <!-- PESO -->
+  <text
+    :x="calcularPuntoPeso(arista).x"
+    :y="calcularPuntoPeso(arista).y"
+    fill="white"
+    font-size="14"
+    text-anchor="middle"
+  >
+    {{ arista.peso }}
+  </text>
+</template>
+
+</g>
       </svg>
 
       <!-- VERTICES -->
@@ -68,23 +126,24 @@
         :class="{ seleccionado: verticeSeleccionado === index }"
         :style="{ top: vertice.y + 'px', left: vertice.x + 'px' }"
         @click.stop="clickVertice(index)"
+        @mousedown.stop="mousedownVertice(index, $event)"
       >
-        {{ index }}
+        {{ vertice.nombre }}
       </div>
 
     </div>
 
     <!-- MODAL -->
     <div v-if="mostrarModal" class="modal-overlay">
-      <div class="modal">
-        <h3>Ingrese el peso</h3>
-        <input v-model="pesoTemporal" type="number" />
-        <div class="modal-botones">
-          <button @click="confirmarPeso">Confirmar</button>
-          <button @click="cancelarPeso">Cancelar</button>
-        </div>
-      </div>
+  <div class="modal" @click.stop>
+    <h3>Ingrese el peso</h3>
+    <input v-model="pesoTemporal" type="number" />
+    <div class="modal-botones">
+      <button @click.stop="confirmarPeso">Confirmar</button>
+      <button @click.stop="cancelarPeso">Cancelar</button>
     </div>
+  </div>
+</div>
 
   </div>
 </template>
@@ -97,67 +156,159 @@ export default {
       vertices: [],
       aristas: [],
       verticeSeleccionado: null,
+      mostrarModalNombre: false,
+      nombreTemporal: "",
+      xTemp: null,
+      yTemp: null,
 
+      verticeArrastrando: null,
       mostrarModal: false,
       pesoTemporal: "",
       origenTemporal: null,
-      destinoTemporal: null
+      destinoTemporal: null, 
+
+      // Opciones del grafo
+      dirigido: false,
+      permitirBucles: false,
+      nombreGrafo: ""
     }
   },
 
   methods: {
+
+    calcularPuntoBorde(origen, destino) {
+  const v1 = this.vertices[origen]
+  const v2 = this.vertices[destino]
+
+  const dx = v2.x - v1.x
+  const dy = v2.y - v1.y
+  const distancia = Math.sqrt(dx * dx + dy * dy)
+
+  const radio = 20 // mitad altura del vértice
+
+  const offsetX = (dx / distancia) * radio
+  const offsetY = (dy / distancia) * radio
+
+  return {
+    x: v1.x + offsetX,
+    y: v1.y + offsetY
+  }
+},
 
     irInicio() {
   this.$router.push("/")
 },
 
     clickLienzo(event) {
-      if (this.modo === "crear") {
-        const rect = event.currentTarget.getBoundingClientRect()
+      if (this.modo === "crear" && !this.mostrarModalNombre) {
+        const rect = this.$el.querySelector(".lienzo").getBoundingClientRect()
         const x = event.clientX - rect.left
         const y = event.clientY - rect.top
-        this.vertices.push({ x, y })
+
+        this.xTemp = x
+        this.yTemp = y
+        this.mostrarModalNombre = true
       }
     },
+
+    confirmarNombre() {
+      if (this.nombreTemporal.trim() === "") {
+        alert("Ingrese un nombre válido")
+        return
+      }
+
+      this.vertices.push({
+        x: this.xTemp,
+        y: this.yTemp,
+        nombre: this.nombreTemporal
+      })
+
+      this.nombreTemporal = ""
+      this.mostrarModalNombre = false
+      this.xTemp = null
+      this.yTemp = null
+    },
+
+     mousedownVertice(index, event) {
+      this.verticeArrastrando = index
+      event.stopPropagation()
+    },
+//mover vertice
+     mousemoveLienzo(event) {
+      if (this.verticeArrastrando !== null) {
+        const rect = event.currentTarget.getBoundingClientRect()
+        this.vertices[this.verticeArrastrando].x = event.clientX - rect.left
+        this.vertices[this.verticeArrastrando].y = event.clientY - rect.top
+      }
+    },
+
+
+    mouseupLienzo() {
+      this.verticeArrastrando = null
+    },
+
 
     clickVertice(index) {
+  if (this.modo === "unir") {
+    if (this.verticeSeleccionado === null) {
+      this.verticeSeleccionado = index
+    } else {
 
-      if (this.modo === "unir") {
-
-        if (this.verticeSeleccionado === null) {
-          this.verticeSeleccionado = index
-        } else {
-
-          if (this.verticeSeleccionado !== index) {
-
-            this.origenTemporal = this.verticeSeleccionado
-            this.destinoTemporal = index
-            this.mostrarModal = true
-          }
-
-          this.verticeSeleccionado = null
-        }
+      // evitar unir dos veces el mismo clic
+      if (this.verticeSeleccionado === index) {
+        this.verticeSeleccionado = null
+        return
       }
 
-      if (this.modo === "eliminar") {
-        this.eliminarVertice(index)
-      }
-    },
+      this.origenTemporal = this.verticeSeleccionado
+      this.destinoTemporal = index
+
+      this.mostrarModal = true
+      this.verticeSeleccionado = null
+    }
+  }
+
+  if (this.modo === "eliminar") {
+    this.eliminarVertice(index)
+  }
+} ,
 
     confirmarPeso() {
-      if (this.pesoTemporal !== "") {
-        this.aristas.push({
-          origen: this.origenTemporal,
-          destino: this.destinoTemporal,
-          peso: this.pesoTemporal
-        })
-      }
+     const peso = parseFloat(this.pesoTemporal)
 
+    if (isNaN(peso)) {
+    alert("Ingrese un número válido")
+    return
+    }
+
+    if (this.dirigido) {
+      this.aristas.push({
+      origen: this.origenTemporal,
+      destino: this.destinoTemporal,
+      peso,
+      dirigido: true
+    })
+
+    } else {
+      this.aristas.push({
+      origen: this.origenTemporal,
+      destino: this.destinoTemporal,
+      peso,
+      dirigido: false
+      })
+    }
       this.cerrarModal()
+
+      this.modo="unir"
     },
 
     cancelarPeso() {
       this.cerrarModal()
+    },
+
+    cancelarNombre() {
+    this.mostrarModalNombre = false
+    this.nombreTemporal = ""
     },
 
     cerrarModal() {
@@ -190,10 +341,71 @@ export default {
       this.vertices = []
       this.aristas = []
       this.verticeSeleccionado = null
-    }
+    },
 
-  }
+    existeInversa(arista) {
+  return this.aristas.some(a =>
+    a.origen === arista.destino &&
+    a.destino === arista.origen
+  )
+},
+
+calcularOffset(arista) {
+  if (arista.origen === arista.destino) return 0
+
+  const existeInversa = this.aristas.some(a =>
+    a.origen === arista.destino &&
+    a.destino === arista.origen
+  )
+
+  if (!existeInversa) return 0
+
+  // Si existe inversa, separarlas en lados opuestos
+  return arista.origen < arista.destino ? 15 : -15
+},
+
+calcularX1(arista) {
+  return this.calcularPuntoBorde(arista.origen, arista.destino).x
+},
+
+calcularY1(arista) {
+  return this.calcularPuntoBorde(arista.origen, arista.destino).y
+},
+
+calcularX2(arista) {
+  return this.calcularPuntoBorde(arista.destino, arista.origen).x
+},
+
+calcularY2(arista) {
+  return this.calcularPuntoBorde(arista.destino, arista.origen).y
+}, 
+
+calcularCurva(arista) {
+  const p1 = this.calcularPuntoBorde(arista.origen, arista.destino)
+  const p2 = this.calcularPuntoBorde(arista.destino, arista.origen)
+
+  const dx = p2.x - p1.x
+  const dy = p2.y - p1.y
+
+  const mx = (p1.x + p2.x) / 2
+  const my = (p1.y + p2.y) / 2
+
+  const offset = 30
+
+  const normalX = -dy
+  const normalY = dx
+  const length = Math.sqrt(normalX * normalX + normalY * normalY)
+
+  const controlX = mx + (normalX / length) * offset
+  const controlY = my + (normalY / length) * offset
+
+  return `M ${p1.x} ${p1.y} Q ${controlX} ${controlY} ${p2.x} ${p2.y}`
 }
+  }
+
+
+}
+
 </script>
 
 <style scoped>
@@ -310,21 +522,25 @@ body {
   border: 2px solid white;
   border-radius: 20px;
   position: relative;
+  overflow: hidden;
 }
 
 .vertice {
-  width: 40px;
+  min-width: 40px;
   height: 40px;
+  z-index: 2;
+  padding: 0 12px;
   background: #e6708cd2;
-  border-radius: 50%;
+  border-radius: 999px; /* píldora perfecta */
   position: absolute;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-family:'Times New Roman', Times, serif;
+  font-family: 'Times New Roman', Times, serif;
   font-weight: bold;
+  white-space: nowrap;
 }
 
 .seleccionado {
@@ -335,6 +551,9 @@ body {
   position: absolute;
   width: 100%;
   height: 100%;
+  z-index: 1;
+  pointer-events: none;  
+
 }
 
 .cursorCrear { cursor: crosshair; }
@@ -353,6 +572,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 9999; 
 }
 
 .modal {
