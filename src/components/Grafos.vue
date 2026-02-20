@@ -251,27 +251,21 @@ export default {
     clickVertice(index) {
   if (this.modo === "unir") {
     if (this.verticeSeleccionado === null) {
-      this.verticeSeleccionado = index
+      this.verticeSeleccionado = index;
     } else {
+      // Ahora permitimos que origenTemporal y destinoTemporal sean iguales
+      this.origenTemporal = this.verticeSeleccionado;
+      this.destinoTemporal = index;
 
-      // evitar unir dos veces el mismo clic
-      if (this.verticeSeleccionado === index) {
-        this.verticeSeleccionado = null
-        return
-      }
-
-      this.origenTemporal = this.verticeSeleccionado
-      this.destinoTemporal = index
-
-      this.mostrarModal = true
-      this.verticeSeleccionado = null
+      this.mostrarModal = true;
+      this.verticeSeleccionado = null;
     }
   }
 
   if (this.modo === "eliminar") {
-    this.eliminarVertice(index)
+    this.eliminarVertice(index);
   }
-} ,
+},
 
     confirmarPeso() {
      const peso = parseFloat(this.pesoTemporal)
@@ -381,26 +375,61 @@ calcularY2(arista) {
 }, 
 
 calcularCurva(arista) {
-  const p1 = this.calcularPuntoBorde(arista.origen, arista.destino)
-  const p2 = this.calcularPuntoBorde(arista.destino, arista.origen)
+  // 1. CASO BUCLE: Si el origen y destino son iguales
+  if (arista.origen === arista.destino) {
+    const v = this.vertices[arista.origen];
+    // Usamos una curva de Bézier cúbica (C) para crear la "orejita" del bucle
+    return `M ${v.x} ${v.y} C ${v.x - 40} ${v.y - 80}, ${v.x + 40} ${v.y - 80}, ${v.x} ${v.y}`;
+  }
 
-  const dx = p2.x - p1.x
-  const dy = p2.y - p1.y
+  // 2. CASO ARISTA NORMAL: Si son vértices distintos
+  // (Este código solo se ejecuta si la condición de arriba es falsa)
+  const p1 = this.calcularPuntoBorde(arista.origen, arista.destino);
+  const p2 = this.calcularPuntoBorde(arista.destino, arista.origen);
 
-  const mx = (p1.x + p2.x) / 2
-  const my = (p1.y + p2.y) / 2
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
 
-  const offset = 30
+  const mx = (p1.x + p2.x) / 2;
+  const my = (p1.y + p2.y) / 2;
 
-  const normalX = -dy
-  const normalY = dx
-  const length = Math.sqrt(normalX * normalX + normalY * normalY)
+  const offset = 30; // Curvatura de la línea
 
-  const controlX = mx + (normalX / length) * offset
-  const controlY = my + (normalY / length) * offset
+  const normalX = -dy;
+  const normalY = dx;
+  const length = Math.sqrt(normalX * normalX + normalY * normalY) || 1;
 
-  return `M ${p1.x} ${p1.y} Q ${controlX} ${controlY} ${p2.x} ${p2.y}`
-}
+  const controlX = mx + (normalX / length) * offset;
+  const controlY = my + (normalY / length) * offset;
+
+  return `M ${p1.x} ${p1.y} Q ${controlX} ${controlY} ${p2.x} ${p2.y}`;
+},
+
+calcularPuntoPeso(arista) {
+  const p1 = this.vertices[arista.origen];
+  const p2 = this.vertices[arista.destino];
+
+  // Si es un bucle, el peso va arriba del círculo
+  if (arista.origen === arista.destino) {
+    return { x: p1.x, y: p1.y - 60 };
+  }
+
+  // Si es una arista normal, buscamos el centro de la curva
+  const mx = (p1.x + p2.x) / 2;
+  const my = (p1.y + p2.y) / 2;
+
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+
+  const offset = 40; // Qué tan lejos de la línea se verá el peso
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  // Usamos la normal para que el texto no quede encima de la línea
+  return {
+    x: mx + (-dy / length) * offset,
+    y: my + (dx / length) * offset
+  };
+},
   }
 
 
