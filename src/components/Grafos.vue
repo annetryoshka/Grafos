@@ -11,6 +11,7 @@
         <button @click="modo = 'crear'">Crear vértice</button>
         <button @click="modo = 'unir'">Unir vértices</button>
         <button @click="modo = 'eliminar'">Eliminar</button>
+        <button @click="abrirModalMatriz">Ingresar matriz</button>
         <button @click="borrarTodo">Borrar todo</button>
 
         <div class="opcion-grafo">
@@ -105,6 +106,62 @@
 
     </div>
 
+    <!-- MATRIZ -->
+<div class="matriz">
+  <h3>Matriz de Adyacencia</h3>
+
+  <table border="1">
+  <thead>
+    <tr>
+      <th></th>
+      <th v-for="(v,i) in vertices" :key="i">
+        {{ v.nombre }}
+      </th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr v-for="(fila,i) in generarMatriz()" :key="i">
+      <th>{{ vertices[i].nombre }}</th>
+      <td v-for="(valor,j) in fila" :key="j">
+        {{ valor }}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<!-- GRADOS -->
+<div class="grados">
+  <h3>Grados</h3>
+  <div v-for="g in calcularGrados()" :key="g.nombre">
+    {{ g.nombre }} → Entrada: {{ g.entrada }} | Salida: {{ g.salida }}
+  </div>
+</div>
+
+<div v-if="mostrarModalMatriz" class="modal-overlay">
+  <div class="modal" @click.stop style="width: auto; padding: 30px;">
+    <h3>Ingrese la matriz</h3>
+
+    <table>
+      <tr v-for="(fila,i) in matrizEditable" :key="i">
+        <td v-for="(valor,j) in fila" :key="j">
+          <input
+            type="number"
+            v-model.number="matrizEditable[i][j]"
+            style="width: 50px;"
+          />
+        </td>
+      </tr>
+    </table>
+
+    <div class="modal-botones" style="margin-top:20px;">
+      <button @click="generarGrafoDesdeMatriz">Generar</button>
+      <button @click="mostrarModalMatriz = false">Cancelar</button>
+    </div>
+  </div>
+</div>
+
     <!-- MODAL -->
     <div v-if="mostrarModal" class="modal-overlay">
   <div class="modal" @click.stop>
@@ -142,7 +199,12 @@ export default {
       // Opciones del grafo
       dirigido: false,
       permitirBucles: false,
-      nombreGrafo: ""
+      nombreGrafo: "",
+
+      //matriz
+      mostrarModalMatriz: false,
+      matrizEditable: [],
+      tamanoMatriz: 0,
     }
   },
 
@@ -418,9 +480,97 @@ calcularPuntoPeso(arista) {
     y: my + (dx / length) * offset
   };
 },
+
+generarMatriz() {
+  const n = this.vertices.length
+
+  const matriz = Array(n)
+    .fill(0)
+    .map(() => Array(n).fill(0))
+
+  this.aristas.forEach(arista => {
+    matriz[arista.origen][arista.destino] = arista.peso
+
+    if (!this.dirigido) {
+      matriz[arista.destino][arista.origen] = arista.peso
+    }
+  })
+
+  return matriz
+},
+
+calcularGrados() {
+  const matriz = this.generarMatriz()
+
+  return this.vertices.map((v, i) => {
+    const salida = matriz[i].reduce((a,b)=>a+b,0)
+
+    const entrada = matriz.reduce((acc,fila)=>acc+fila[i],0)
+
+    return {
+      nombre: v.nombre,
+      entrada,
+      salida
+    }
+  })
+},
+
+abrirModalMatriz() {
+  this.tamanoMatriz = this.vertices.length || 3
+
+  this.matrizEditable = Array(this.tamanoMatriz)
+    .fill(0)
+    .map(() => Array(this.tamanoMatriz).fill(0))
+
+  this.mostrarModalMatriz = true
+},
+
+generarGrafoDesdeMatriz() {
+
+  const n = this.matrizEditable.length
+
+  // Crear vértices automáticos centrados
+  this.vertices = []
+  this.aristas = []
+
+  const centroX = 400
+  const centroY = 250
+  const radio = 150
+
+  for (let i = 0; i < n; i++) {
+    const angulo = (2 * Math.PI * i) / n
+
+    this.vertices.push({
+      x: centroX + radio * Math.cos(angulo),
+      y: centroY + radio * Math.sin(angulo),
+      nombre: String.fromCharCode(65 + i) // A,B,C...
+    })
   }
 
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
 
+      const valor = parseFloat(this.matrizEditable[i][j])
+
+      if (!isNaN(valor) && valor !== 0) {
+
+        if (!this.dirigido && j < i) continue
+
+        this.aristas.push({
+          origen: i,
+          destino: j,
+          peso: valor,
+          dirigido: this.dirigido
+        })
+      }
+    }
+  }
+
+  this.mostrarModalMatriz = false
+}
+
+  }
+//end methods
 }
 
 </script>
@@ -660,6 +810,22 @@ body {
   border-radius: 30px;
   border: 1px solid rgba(201, 196, 156, 0.4);
   margin-left: 10px;
+}
+
+.matriz, .grados {
+  width: 90%;
+  margin: 30px auto;
+  color: white;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td, th {
+  padding: 6px;
+  text-align: center;
 }
 
 .label-texto {
