@@ -88,7 +88,8 @@
 </marker>
 
     </defs>
-    <g v-for="(arista, index) in aristas" :key="index">
+    <g v-for="(arista, index) in aristas" :key="index"
+   @dblclick.stop="editarArista(index)">
   <path
     :d="calcularCurva(arista)"
     stroke="white"
@@ -97,9 +98,22 @@
     :marker-end="arista.dirigido ? 'url(#arrow)' : ''"
     @click.stop="clickArista(index)"
     @dblclick.stop="editarArista(index)"
-    style="pointer-events: stroke; cursor:pointer;"
+    style="pointer-events: stroke;"
   />
 
+  <g>
+
+  <!-- área clickeable -->
+  <rect
+  :x="calcularPuntoPeso(arista).x - 25"
+  :y="calcularPuntoPeso(arista).y - 20"
+  width="50"
+  height="40"
+  fill="transparent"
+  style="cursor:pointer;"
+  />
+
+  <!-- número del peso -->
   <text
     :x="calcularPuntoPeso(arista).x"
     :y="calcularPuntoPeso(arista).y"
@@ -110,6 +124,8 @@
   >
     {{ arista.peso }}
   </text>
+
+</g>
 </g>
       </svg>
 
@@ -133,23 +149,36 @@
   <h3>Matriz de Adyacencia</h3>
 
   <table border="1">
-  <thead>
-    <tr>
-      <th></th>
-      <th v-for="(v,i) in vertices" :key="i">
-        {{ v.nombre }}
-      </th>
-    </tr>
-  </thead>
+  
+    <thead>
+  <tr>
+    <th></th>
+
+    <th v-for="(v,i) in vertices" :key="i">
+      {{ v.nombre }}
+    </th>
+
+    <th>Σ</th>
+  </tr>
+</thead>
 
   <tbody>
-    <tr v-for="(fila,i) in generarMatriz()" :key="i">
-      <th>{{ vertices[i].nombre }}</th>
-      <td v-for="(valor,j) in fila" :key="j">
-        {{ valor }}
-      </td>
-    </tr>
-  </tbody>
+  <tr v-for="(fila,i) in generarMatriz()" :key="i">
+
+    <th :class="{ suma: i === vertices.length }">
+      {{ i < vertices.length ? vertices[i].nombre : 'Σ' }}
+    </th>
+
+    <td 
+      v-for="(valor,j) in fila" 
+      :key="j"
+      :class="{ suma: i === vertices.length || j === vertices.length }"
+    >
+      {{ valor }}
+    </td> 
+
+  </tr>
+</tbody>
 </table>
 </div>
 
@@ -625,19 +654,49 @@ calcularPuntoPeso(arista) {
 },
 
 generarMatriz() {
+
   const n = this.vertices.length
 
-  const matriz = Array(n)
+  const matriz = Array(n + 1)
     .fill(0)
-    .map(() => Array(n).fill(0))
+    .map(() => Array(n + 1).fill(0))
 
+  // llenar matriz normal
   this.aristas.forEach(arista => {
+
     matriz[arista.origen][arista.destino] = arista.peso
 
     if (!this.dirigido) {
       matriz[arista.destino][arista.origen] = arista.peso
     }
+
   })
+
+  // suma de filas
+  for (let i = 0; i < n; i++) {
+
+    let sumaFila = 0
+
+    for (let j = 0; j < n; j++) {
+      sumaFila += matriz[i][j]
+    }
+
+    matriz[i][n] = sumaFila
+
+  }
+
+  // suma de columnas
+  for (let j = 0; j < n; j++) {
+
+    let sumaCol = 0
+
+    for (let i = 0; i < n; i++) {
+      sumaCol += matriz[i][j]
+    }
+
+    matriz[n][j] = sumaCol
+
+  }
 
   return matriz
 },
@@ -715,6 +774,9 @@ generarGrafoDesdeMatriz() {
 
 exportarJSON() {
 
+  const nombre = prompt("Nombre del archivo:", "grafo")
+  if (!nombre) return
+
   const grafo = {
     dirigido: this.dirigido,
     vertices: this.vertices,
@@ -728,8 +790,10 @@ exportarJSON() {
 
   const a = document.createElement("a")
   a.href = url
-  a.download = "grafo.json"
+  a.download = nombre + ".json"
+  document.body.appendChild(a)
   a.click()
+  document.body.removeChild(a)
 
   URL.revokeObjectURL(url)
   this.incrementarConvergencia()
@@ -1211,6 +1275,11 @@ table {
 td, th {
   padding: 6px;
   text-align: center;
+}
+
+.suma{
+  background-color: #5a2a4a;
+  font-weight: bold;
 }
 
 .label-texto {
