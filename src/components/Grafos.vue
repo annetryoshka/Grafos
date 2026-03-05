@@ -13,6 +13,15 @@
         <button @click="modo = 'eliminar'">Eliminar</button>
         <button @click="abrirModalMatriz">Ingresar matriz</button>
         <button @click="borrarTodo">Borrar todo</button>
+        <button @click="exportarJSON">Exportar JSON</button>
+        <button @click="$refs.fileInput.click()">Importar JSON</button>
+          <input 
+            ref="fileInput"
+            type="file"
+            accept=".json"
+            @change="importarJSON"
+            style="display:none"
+          />
 
         <div class="opcion-grafo">
           <span class="label-texto">{{ dirigido ? "Dirigido" : "No dirigido" }}</span>
@@ -24,10 +33,16 @@
       </div>
 
       <div class="header-right">
-        <a href="/">Volver al inicio</a>
+        <a href="/">Volver</a>
       </div>
 
-    </div> <div
+    </div> 
+
+    <div class="contador-convergencia">
+  Convergencia: {{ contadorConvergencia }}
+</div>
+
+    <div
       class="lienzo"
       :class="{
         cursorCrear: modo === 'crear',
@@ -75,7 +90,8 @@
     stroke-width="2"
     :marker-end="arista.dirigido ? 'url(#arrow)' : ''"
     @click.stop="clickArista(index)"
-    style="pointer-events: stroke;"
+    @dblclick.stop="editarArista(index)"
+    style="pointer-events: stroke; cursor:pointer;"
   />
 
   <text
@@ -162,7 +178,7 @@
   </div>
 </div>
 
-    <!-- MODAL -->
+    <!-- MODAL peso -->
     <div v-if="mostrarModal" class="modal-overlay">
   <div class="modal" @click.stop>
     <h3>Ingrese el peso</h3>
@@ -174,14 +190,93 @@
   </div>
 </div>
 
+  <!-- BOTON ayudE -->
+<div class="help-button" @click="toggleGuia">
+  ?
+</div>
+
+<!-- tooltip -->
+<div v-if="mostrarTooltip" class="help-tooltip">
+  ¿Necesitas ayuda? <br>
+  entra a la guía
+</div>
+
+<!-- GUIA -->
+<div v-if="mostrarGuia" class="help-overlay">
+  <div class="help-modal">
+  <h2>Guía</h2>
+
+  <h3>🗒 Crear vértices</h3>
+  <ul>
+    <li>Haz <b>click en el lienzo</b> para crear un vértice.</li>
+    <li>Los vértices representan nodos del grafo.</li>
+  </ul>
+
+  <h3>༘⋆ Crear aristas</h3>
+  <ul>
+    <li>Haz <b>click en un vértice origen</b>.</li>
+    <li>Luego haz <b>click en un vértice destino</b>.</li>
+    <li>Se abrirá una ventana para ingresar el <b>peso de la arista</b>.</li>
+  </ul>
+
+  <h3>✎𓂃 Editar peso</h3>
+  <ul>
+    <li>Haz <b>doble click sobre una arista</b>.</li>
+    <li>Podrás modificar el peso de la conexión.</li>
+  </ul>
+
+  <h3>🗑 Eliminar elementos</h3>
+  <ul>
+    <li>En modo eliminar puedes borrar <b>vértices o aristas</b>.</li>
+    <li>Al eliminar un vértice se eliminan también sus conexiones.</li>
+  </ul>
+
+  <h3>🖩 Matriz de adyacencia</h3>
+  <ul>
+    <li>Muestra las conexiones del grafo en forma de tabla.</li>
+    <li>Las filas representan <b>origen</b>.</li>
+    <li>Las columnas representan <b>destino</b>.</li>
+    <li>Los valores indican el <b>peso de la arista</b>.</li>
+  </ul>
+
+  <h3>〽 Grados del grafo</h3>
+  <ul>
+    <li>Grado de entrada: cuántas aristas llegan a un nodo.</li>
+    <li>Grado de salida: cuántas aristas salen de un nodo.</li>
+  </ul>
+
+  <h3>🖨 Exportar grafo</h3>
+  <ul>
+    <li>Puedes guardar el grafo como archivo <b>JSON</b>.</li>
+    <li>Se guardan vértices, aristas y pesos.</li>
+  </ul>
+
+  <h3>🗁 Importar grafo</h3>
+  <ul>
+    <li>Puedes cargar un archivo JSON previamente guardado.</li>
+    <li>El sistema reconstruirá automáticamente el grafo.</li>
+  </ul>
+
+  <h3>⋆˙⟡ Consejos</h3>
+  <ul>
+    <li>Separa los nodos para que las aristas se vean mejor.</li>
+    <li>Usa pesos para representar costos o distancias.</li>
+    <li>Verifica la matriz para validar conexiones.</li>
+  </ul>
+
+  <button @click="mostrarGuia=false">Cerrar</button>
   </div>
+
+</div>
+</div>
+
 </template>
 
 <script>
 export default {
   data() {
     return {
-      modo: null,
+      modo: "crear", // crear, unir, eliminar
       vertices: [],
       aristas: [],
       verticeSeleccionado: null,
@@ -189,6 +284,9 @@ export default {
       nombreTemporal: "",
       xTemp: null,
       yTemp: null,
+      mostrarGuia:false,
+      mostrarTooltip:true,
+      contadorConvergencia: 0,
 
       verticeArrastrando: null,
       mostrarModal: false,
@@ -199,6 +297,7 @@ export default {
       // Opciones del grafo
       dirigido: false,
       permitirBucles: false,
+      aristaEditando: null,
       nombreGrafo: "",
 
       //matriz
@@ -206,6 +305,15 @@ export default {
       matrizEditable: [],
       tamanoMatriz: 0,
     }
+  },
+
+  mounted(){
+
+  // el mensaje desaparece despues de 5 segundos
+  setTimeout(()=>{
+    this.mostrarTooltip=false
+  },5000)
+
   },
 
   methods: {
@@ -233,7 +341,13 @@ export default {
   this.$router.push("/")
 },
 
+toggleGuia(){
+  this.mostrarGuia=!this.mostrarGuia
+  this.mostrarTooltip=false
+},
+
     clickLienzo(event) {
+      console.log("click lienzo");
       if (this.modo === "crear" && !this.mostrarModalNombre) {
         const rect = this.$el.querySelector(".lienzo").getBoundingClientRect()
         const x = event.clientX - rect.left
@@ -256,6 +370,8 @@ export default {
         y: this.yTemp,
         nombre: this.nombreTemporal
       })
+
+      this.incrementarConvergencia()
 
       this.nombreTemporal = ""
       this.mostrarModalNombre = false
@@ -309,6 +425,13 @@ export default {
     return
     }
 
+    if (this.aristaEditando !== null) {
+
+    this.aristas[this.aristaEditando].peso = peso
+    this.aristaEditando = null
+
+    } else {
+
     if (this.dirigido) {
       this.aristas.push({
       origen: this.origenTemporal,
@@ -324,7 +447,9 @@ export default {
       peso,
       dirigido: false
       })
+      this.incrementarConvergencia()
     }
+  }
       this.cerrarModal()
 
       this.modo="unir"
@@ -348,8 +473,10 @@ export default {
 
     clickArista(index) {
       if (this.modo === "eliminar") {
-        this.aristas.splice(index, 1)
-      }
+      this.aristas.splice(index, 1)
+      this.incrementarConvergencia()
+    }
+
     },
 
     eliminarVertice(index) {
@@ -363,12 +490,14 @@ export default {
       })
 
       this.vertices.splice(index, 1)
+      this.incrementarConvergencia()
     },
 
     borrarTodo() {
       this.vertices = []
       this.aristas = []
       this.verticeSeleccionado = null
+      this.incrementarConvergencia()
     },
 
     existeInversa(arista) {
@@ -376,6 +505,12 @@ export default {
     a.origen === arista.destino &&
     a.destino === arista.origen
   )
+},
+
+editarArista(index) {
+  this.aristaEditando = index
+  this.pesoTemporal = this.aristas[index].peso
+  this.mostrarModal = true
 },
 
 calcularOffset(arista) {
@@ -567,6 +702,57 @@ generarGrafoDesdeMatriz() {
   }
 
   this.mostrarModalMatriz = false
+},
+
+exportarJSON() {
+
+  const grafo = {
+    dirigido: this.dirigido,
+    vertices: this.vertices,
+    aristas: this.aristas
+  }
+
+  const json = JSON.stringify(grafo, null, 2)
+
+  const blob = new Blob([json], { type: "application/json" })
+  const url = URL.createObjectURL(blob)
+
+  const a = document.createElement("a")
+  a.href = url
+  a.download = "grafo.json"
+  a.click()
+
+  URL.revokeObjectURL(url)
+},
+
+importarJSON(event) {
+
+  const archivo = event.target.files[0]
+  if (!archivo) return
+
+  const lector = new FileReader()
+
+  lector.onload = (e) => {
+
+    try {
+
+      const grafo = JSON.parse(e.target.result)
+
+      this.dirigido = grafo.dirigido || false
+      this.vertices = grafo.vertices || []
+      this.aristas = grafo.aristas || []
+
+    } catch {
+      alert("Archivo JSON inválido")
+    }
+
+  }
+
+  lector.readAsText(archivo)
+},
+
+incrementarConvergencia(){
+  this.contadorConvergencia++
 }
 
   }
@@ -680,7 +866,165 @@ body {
   }
 }
 
+.help-button{
+ position: fixed;
+ bottom: 25px;
+ right: 25px;
+ width: 58px;
+ height: 58px;
+ border-radius: 50%;
+ background: #c9c49c;
+ color: #381932;
+ font-size: 28px;
 
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ cursor: pointer;
+ box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+ z-index: 1000;
+ transition: all 0.25s ease;
+}
+
+.help-button:hover{
+ transform: scale(1.1);
+ background: #7f1740;
+ color: rgb(248, 248, 248);
+}
+
+
+/* TOOLTIP */
+
+.help-tooltip{
+ position: fixed;
+ bottom: 95px;
+ right: 30px;
+ background: #c9c49c;
+ color: #381932;
+ padding: 12px 16px;
+ border-radius: 10px;
+ font-size: 14px;
+ font-family: fuente1, serif;
+ box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+ animation: fadeIn 0.4s ease;
+}
+
+
+/* OVERLAY OSCURO */
+
+.help-overlay{
+ position: fixed;
+ top:0;
+ left:0;
+ width:100%;
+ height:100%;
+ background: rgba(0,0,0,0.6);
+ backdrop-filter: blur(3px);
+ z-index:1500;
+
+ display:flex;
+ align-items:center;
+ justify-content:center;
+
+}
+
+
+/* MODAL GUIA */
+
+.help-modal{
+ background:#2a1124;
+ color:#c9c49c;
+ padding:30px 35px;
+ border-radius:16px;
+ width:520px;
+ max-height:80vh;
+ overflow-y:auto;
+ pointer-events:auto;
+ box-shadow:0 15px 40px rgba(0,0,0,0.6);
+ font-family:'Times New Roman', Times, serif;
+ animation: popIn 0.25s ease;
+}
+
+
+/* TITULO GUIA */
+
+.help-modal h2{
+ text-align:center;
+ margin-bottom:20px;
+ font-family: fuente1, serif;
+ letter-spacing:2px;
+ color:#ffffffc5;
+}
+
+
+/* SUBTITULOS */
+
+.help-modal h3{
+ margin-top:18px;
+ margin-bottom:8px;
+ font-size:18px;
+ color:#ebebebd6;
+ border-bottom:1px solid rgba(201,196,156,0.3);
+ padding-bottom:4px;
+}
+
+
+/* LISTAS */
+
+.help-modal ul{
+ margin:0;
+ padding-left:18px;
+}
+
+.help-modal li{
+ margin:6px 0;
+ font-size:15px;
+ color: #c9c49cd0;
+ line-height:1.4;
+}
+
+
+/* BOTON CERRAR */
+
+.help-modal button{
+ margin-top:20px;
+ background:#b9a8ac;
+ border:none;
+ margin: 25px auto 0 auto; 
+ display: block;
+ color:rgb(77, 45, 45);
+ padding:8px 18px;
+ border-radius:20px;
+ cursor:pointer;
+ font-family: fuente1, serif;
+ transition:0.25s;
+}
+
+.help-modal button:hover{
+ background:#c9c49c;
+ color:#381932;
+}
+
+/* SCROLL PERSONALIZADO */
+
+.help-modal::-webkit-scrollbar {
+  width: 10px;
+}
+
+.help-modal::-webkit-scrollbar-track {
+  background: #381932; /* fondo vino oscuro */
+  border-radius: 10px;
+}
+
+.help-modal::-webkit-scrollbar-thumb {
+  background: #c9c49c; /* dorado de tu UI */
+  border-radius: 10px;
+  border: 2px solid #381932;
+}
+
+.help-modal::-webkit-scrollbar-thumb:hover {
+  background: #ab7f89; /* rosa de tus vértices */
+}
 
 .lienzo {
   width: 90%;
@@ -890,5 +1234,12 @@ input:checked + .slider:before {
   to { transform: scale(1); }
 }
 
+.contador-convergencia{
+  color: #c9c49c;
+  font-size: 20px;
+  margin-left: 80px;
+  margin-top: 10px;
+  font-family: fuente1, serif;
+}
 
 </style>
