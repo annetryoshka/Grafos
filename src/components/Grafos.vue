@@ -39,7 +39,13 @@
     </div> 
 
     <div class="contador-convergencia">
-  Convergencia: {{ contadorConvergencia }}
+
+  Convergencia:
+
+  <div v-for="(v,i) in vectorConvergencia" :key="i">
+    {{ vertices[i]?.nombre }} → {{ v.toFixed(3) }}
+  </div>
+
 </div>
 
     <div
@@ -287,6 +293,7 @@ export default {
       mostrarGuia:false,
       mostrarTooltip:true,
       contadorConvergencia: 0,
+      vectorConvergencia: [],
 
       verticeArrastrando: null,
       mostrarModal: false,
@@ -447,8 +454,9 @@ toggleGuia(){
       peso,
       dirigido: false
       })
-      this.incrementarConvergencia()
+      
     }
+    this.incrementarConvergencia()
   }
       this.cerrarModal()
 
@@ -702,6 +710,7 @@ generarGrafoDesdeMatriz() {
   }
 
   this.mostrarModalMatriz = false
+  this.incrementarConvergencia()
 },
 
 exportarJSON() {
@@ -723,6 +732,7 @@ exportarJSON() {
   a.click()
 
   URL.revokeObjectURL(url)
+  this.incrementarConvergencia()
 },
 
 importarJSON(event) {
@@ -751,8 +761,39 @@ importarJSON(event) {
   lector.readAsText(archivo)
 },
 
+calcularConvergencia() {
+
+  const matriz = this.generarMatriz()
+  const n = matriz.length
+
+  if (n === 0) return []
+
+  let v = Array(n).fill(1/n)
+
+  for (let iter = 0; iter < 20; iter++) {
+
+    const nuevo = Array(n).fill(0)
+
+    for (let i = 0; i < n; i++) {
+
+      const sumaFila = matriz[i].reduce((a,b)=>a+b,0)
+
+      if (sumaFila === 0) continue
+
+      for (let j = 0; j < n; j++) {
+        nuevo[j] += v[i] * (matriz[i][j] / sumaFila)
+      }
+
+    }
+
+    v = nuevo
+  }
+
+  return v
+},
+
 incrementarConvergencia(){
-  this.contadorConvergencia++
+  this.vectorConvergencia = this.calcularConvergencia()
 }
 
   }
