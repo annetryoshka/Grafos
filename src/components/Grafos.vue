@@ -62,9 +62,9 @@
 
 
   <div v-if="mostrarModalNombre" class="modal-overlay">
-  <div class="modal" @click.stop>
+  <div class="modal-pequeno" @click.stop>
     <h3>Nombre del vértice</h3>
-    <input v-model="nombreTemporal" type="text" />
+    <input v-model="nombreTemporal" placeholder="Ej: A" />
     <div class="modal-botones">
       <button @click.stop="confirmarNombre">Crear</button>
       <button @click.stop="cancelarNombre">Cancelar</button>
@@ -131,91 +131,106 @@
 
       <!-- VERTICES -->
       <div
-        v-for="(vertice, index) in vertices"
-        :key="index"
-        class="vertice"
-        :class="{ seleccionado: verticeSeleccionado === index }"
-        :style="{ top: vertice.y + 'px', left: vertice.x + 'px' }"
-        @click.stop="clickVertice(index)"
-        @mousedown.stop="mousedownVertice(index, $event)"
-      >
-        {{ vertice.nombre }}
-      </div>
-
-    </div>
-
-    <!-- MATRIZ -->
-<div class="matriz">
-  <h3>Matriz de Adyacencia</h3>
-
-  <table border="1">
-  
-    <thead>
-  <tr>
-    <th></th>
-
-    <th v-for="(v,i) in vertices" :key="i">
-      {{ v.nombre }}
-    </th>
-
-    <th>Σ</th>
-  </tr>
-</thead>
-
-  <tbody>
-  <tr v-for="(fila,i) in generarMatriz()" :key="i">
-
-    <th :class="{ suma: i === vertices.length }">
-      {{ i < vertices.length ? vertices[i].nombre : 'Σ' }}
-    </th>
-
-    <td 
-      v-for="(valor,j) in fila" 
-      :key="j"
-      :class="{ suma: i === vertices.length || j === vertices.length }"
-    >
-      {{ valor }}
-    </td> 
-
-  </tr>
-</tbody>
-</table>
+  v-for="(vertice, index) in vertices"
+  :key="index"
+  class="vertice"
+  :class="{ seleccionado: verticeSeleccionado === index }"
+  :style="{ top: vertice.y + 'px', left: vertice.x + 'px' }"
+  @click.stop="clickVertice(index)"
+  @mousedown.stop="mousedownVertice(index, $event)"
+  @dblclick.stop="abrirRenombrar(index)"
+>
+  {{ vertice.nombre }}
 </div>
 
-<!-- GRADOS -->
-<div class="grados">
-  <h3>Grados</h3>
-  <div v-for="g in calcularGrados()" :key="g.nombre">
-    {{ g.nombre }} → Entrada: {{ g.entrada }} | Salida: {{ g.salida }}
-  </div>
-</div>
+    </div
 
-<div v-if="mostrarModalMatriz" class="modal-overlay">
-  <div class="modal" @click.stop style="width: auto; padding: 30px;">
-    <h3>Ingrese la matriz</h3>
+<!-- PANEL INFERIOR -->
+<div class="panel-inferior">
+
+  <!-- MATRIZ -->
+  <div class="matriz">
+    <h3>Matriz de Adyacencia</h3>
 
     <table>
+      <thead>
+        <tr>
+          <th></th>
+
+          <th v-for="(v,i) in vertices" :key="i">
+            {{ v.nombre }}
+          </th>
+
+          <th>Σ</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr v-for="(fila,i) in generarMatriz()" :key="i">
+
+          <th :class="{ suma: i === vertices.length }">
+            {{ i < vertices.length ? vertices[i].nombre : 'Σ' }}
+          </th>
+
+          <td
+            v-for="(valor,j) in fila"
+            :key="j"
+            :class="[
+              { suma: i === vertices.length || j === vertices.length },
+              { conexion: valor > 0 }
+            ]"
+          >
+            {{ valor }}
+          </td>
+
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- GRADOS -->
+  <div class="grados">
+    <h3>Grados</h3>
+
+    <div class="grado-item" v-for="g in calcularGrados()" :key="g.nombre">
+      <strong>{{ g.nombre }}</strong>
+      <span>Entrada: {{ g.entrada }}</span>
+      <span>Salida: {{ g.salida }}</span>
+    </div>
+
+  </div>
+
+</div>
+
+
+<!-- MODAL MATRIZ -->
+<div v-if="mostrarModalMatriz" class="modal-overlay">
+  <div class="modal-matriz" @click.stop>
+
+    <h3>Ingrese la matriz</h3>
+
+    <table class="tabla-modal">
       <tr v-for="(fila,i) in matrizEditable" :key="i">
         <td v-for="(valor,j) in fila" :key="j">
           <input
             type="number"
             v-model.number="matrizEditable[i][j]"
-            style="width: 50px;"
           />
         </td>
       </tr>
     </table>
 
-    <div class="modal-botones" style="margin-top:20px;">
+    <div class="modal-botones">
       <button @click="generarGrafoDesdeMatriz">Generar</button>
       <button @click="mostrarModalMatriz = false">Cancelar</button>
     </div>
+
   </div>
 </div>
 
     <!-- MODAL peso -->
     <div v-if="mostrarModal" class="modal-overlay">
-  <div class="modal" @click.stop>
+  <div class="modal-pequeno" @click.stop>
     <h3>Ingrese el peso</h3>
     <input v-model="pesoTemporal" type="number" />
     <div class="modal-botones">
@@ -323,6 +338,8 @@ export default {
       mostrarTooltip:true,
       contadorConvergencia: 0,
       vectorConvergencia: [],
+      indiceRenombrar: null,
+      modoRenombrar:false,
 
       verticeArrastrando: null,
       mostrarModal: false,
@@ -373,6 +390,15 @@ export default {
   }
 },
 
+abrirRenombrar(index){
+
+  this.indiceRenombrar = index
+  this.nombreTemporal = this.vertices[index].nombre
+  this.mostrarModalNombre = true
+  this.modoRenombrar = true
+
+},
+
     irInicio() {
   this.$router.push("/")
 },
@@ -395,25 +421,34 @@ toggleGuia(){
       }
     },
 
-    confirmarNombre() {
-      if (this.nombreTemporal.trim() === "") {
-        alert("Ingrese un nombre válido")
-        return
-      }
+    confirmarNombre(){
 
-      this.vertices.push({
-        x: this.xTemp,
-        y: this.yTemp,
-        nombre: this.nombreTemporal
-      })
+  if(this.nombreTemporal.trim()===""){
+    alert("Ingrese un nombre válido")
+    return
+  }
 
-      this.incrementarConvergencia()
+  if(this.modoRenombrar){
 
-      this.nombreTemporal = ""
-      this.mostrarModalNombre = false
-      this.xTemp = null
-      this.yTemp = null
-    },
+    this.vertices[this.indiceRenombrar].nombre = this.nombreTemporal
+
+  }else{
+
+    this.vertices.push({
+      x:this.xTemp,
+      y:this.yTemp,
+      nombre:this.nombreTemporal
+    })
+
+  }
+
+  this.incrementarConvergencia()
+
+  this.nombreTemporal=""
+  this.mostrarModalNombre=false
+  this.modoRenombrar=false
+  this.indiceRenombrar=null
+},
 
      mousedownVertice(index, event) {
       this.verticeArrastrando = index
@@ -772,10 +807,7 @@ generarGrafoDesdeMatriz() {
   this.incrementarConvergencia()
 },
 
-exportarJSON() {
-
-  const nombre = prompt("Nombre del archivo:", "grafo")
-  if (!nombre) return
+async exportarJSON() {
 
   const grafo = {
     dirigido: this.dirigido,
@@ -785,18 +817,26 @@ exportarJSON() {
 
   const json = JSON.stringify(grafo, null, 2)
 
-  const blob = new Blob([json], { type: "application/json" })
-  const url = URL.createObjectURL(blob)
+  try {
 
-  const a = document.createElement("a")
-  a.href = url
-  a.download = nombre + ".json"
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+    const handle = await window.showSaveFilePicker({
+      suggestedName: "grafo.json",
+      types: [
+        {
+          description: "Archivo JSON",
+          accept: { "application/json": [".json"] }
+        }
+      ]
+    })
 
-  URL.revokeObjectURL(url)
-  this.incrementarConvergencia()
+    const writable = await handle.createWritable()
+    await writable.write(json)
+    await writable.close()
+
+  } catch (err) {
+    console.log("Guardado cancelado")
+  }
+
 },
 
 importarJSON(event) {
@@ -1157,6 +1197,19 @@ body {
   font-family: 'Times New Roman', Times, serif;
   font-weight: bold;
   white-space: nowrap;
+  animation: aparecerNodo 0.25s ease;
+
+}
+
+@keyframes aparecerNodo{
+  from{
+    transform: translate(-50%, -50%) scale(0);
+    opacity:0;
+  }
+  to{
+    transform: translate(-50%, -50%) scale(1);
+    opacity:1;
+  }
 }
 
 .seleccionado {
@@ -1188,7 +1241,59 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999; 
+  z-index: 1000; 
+}
+
+.modal-pequeno{
+  background:#c9c49c;
+  color:#351125;
+  width:280px;
+  padding:25px;
+  border-radius:16px;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  text-align:center;
+  box-shadow:0 15px 40px rgba(0,0,0,0.35);
+  font-family:'Times New Roman', Times, serif;
+}
+
+.modal-pequeno input{
+  width:100%;
+  padding:8px;
+  border-radius:8px;
+  border:1px solid #351125;
+  text-align:center;
+  font-size:14px;
+}
+
+.modal-pequeno button{
+  padding:8px 12px;
+
+  border:none;
+  border-radius:10px;
+
+  background:#351125;
+  color:white;
+
+  cursor:pointer;
+
+  transition:0.2s;
+}
+
+.modal-pequeno button:hover{
+  background:#4b1734;
+  transform:scale(1.05);
+}
+
+.modal-matriz{
+  background:#2a1025;
+  padding:30px;
+  border-radius:16px;
+  color:white;
+  box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  width:600px;
+  max-width:90vw;
 }
 
 .modal {
@@ -1209,7 +1314,9 @@ body {
 
 .modal-botones {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
+  gap:10px;
+  margin-top:5px;
 }
 
 .modal-botones button {
@@ -1219,6 +1326,13 @@ body {
   color: rgba(255, 255, 255, 0.712);
   border-radius: 10px;
   cursor: pointer;
+  transition:0.2s;
+  min-width: 90px;
+}
+
+.modal-botones button:hover{
+  transform:scale(1.05);
+  background:#4b1734;
 }
 
 .header-superior {
@@ -1261,21 +1375,169 @@ body {
   margin-left: 10px;
 }
 
-.matriz, .grados {
+.panel-inferior{
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+  margin-top: 25px;
+  flex-wrap: wrap;
+}
+
+/* CONTENEDORES */
+
+.matriz, .grados{
   width: 90%;
   margin: 30px auto;
   color: white;
+  padding: 25px;
+  flex: 2;
+  border-radius: 18px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.45);
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+.grado-item{
+  transition: all 0.25s ease;
 }
 
-td, th {
-  padding: 6px;
-  text-align: center;
+.grado-item:hover{
+  transform: translateX(6px);
 }
+
+/* TITULOS */
+
+.matriz h3,
+.grados h3{
+  margin-bottom: 15px;
+  letter-spacing: 2px;
+  color: #c9c49c;
+}
+
+/* TABLA MATRIZ */
+
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:6px;
+}
+
+td, th{
+  padding:10px;
+  text-align:center;
+  border-radius:10px;
+  transition: all 0.25s ease;
+}
+
+th{
+  background:#4a203f;
+  color:#c9c49c;
+  font-weight:bold;
+}
+
+td{
+  background:#381932;
+}
+
+tr:hover td{
+  background:#522046;
+}
+
+td:hover{
+  background:#7f1740;
+  transform:scale(1.1);
+  cursor:pointer;
+  box-shadow:0 5px 15px rgba(0,0,0,0.4);
+}
+
+/* CELDAS CON CONEXION */
+
+.conexion{
+  color:white;
+  font-weight:bold;
+  transform:scale(1.05);
+  animation: aparecer 0.3s ease;
+}
+
+@keyframes aparecer{
+  from{
+    transform: scale(0.6);
+    opacity:0;
+  }
+  to{
+    transform: scale(1);
+    opacity:1;
+  }
+}
+
+/* FILAS / COLUMNAS DE SUMA */
+
+.suma{
+  background:#6a2b55;
+  font-weight:bold;
+  color:#fff2c6;
+}
+
+/* GRADOS */
+
+.grados{
+  flex:1;
+}
+
+.grado-item{
+  background:#654e61;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:10px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  transition:0.2s;
+}
+
+.grado-item:hover{
+  background:#7f1740;
+  transform:translateY(-2px);
+}
+
+/* MODAL */
+
+.modal-overlay{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.55);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+
+.modal{
+  background:#2a1025;
+  padding:30px;
+  border-radius:16px;
+  color:white;
+  box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  width:600px;        /* ancho del contenedor */
+  max-width:90vw; 
+}
+
+.tabla-modal td{
+  background:none;
+  max-height:400px; 
+}
+
+.tabla-modal input{
+  width:50px;
+  padding:6px;
+  border-radius:6px;
+  border:none;
+  text-align:center;
+  font-size:15px;
+}
+
+
 
 .suma{
   background-color: #5a2a4a;
@@ -1350,6 +1612,18 @@ input:checked + .slider:before {
   margin-left: 80px;
   margin-top: 10px;
   font-family: fuente1, serif;
+}
+
+path{
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  animation: dibujarLinea 0.4s ease forwards;
+}
+
+@keyframes dibujarLinea{
+  to{
+    stroke-dashoffset: 0;
+  }
 }
 
 </style>
