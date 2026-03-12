@@ -706,50 +706,48 @@ generarMatriz() {
     }
 
   })
-
-  // suma de filas
+  // sumatoria filas
   for (let i = 0; i < n; i++) {
-
-    let sumaFila = 0
-
-    for (let j = 0; j < n; j++) {
-      sumaFila += matriz[i][j]
-    }
-
-    matriz[i][n] = sumaFila
-
+    matriz[i][n] = matriz[i].slice(0,n).reduce((a,b)=>a+b,0)
   }
 
-  // suma de columnas
+  // sumatoria columnas
   for (let j = 0; j < n; j++) {
-
-    let sumaCol = 0
-
-    for (let i = 0; i < n; i++) {
-      sumaCol += matriz[i][j]
-    }
-
-    matriz[n][j] = sumaCol
-
+    matriz[n][j] = matriz.reduce((acc,f)=>acc+f[j],0)
   }
+
+  // suma total
+  matriz[n][n] = matriz[n].slice(0,n).reduce((a,b)=>a+b,0)
 
   return matriz
 },
+  
 
 calcularGrados() {
-  const matriz = this.generarMatriz()
 
-  return this.vertices.map((v, i) => {
-    const salida = matriz[i].reduce((a,b)=>a+b,0)
+  return this.vertices.map((v,i)=>{
 
-    const entrada = matriz.reduce((acc,fila)=>acc+fila[i],0)
+    let entrada = 0
+    let salida = 0
+
+    this.aristas.forEach(a=>{
+
+      if(a.origen === i) salida++
+      if(a.destino === i) entrada++
+
+      if(!this.dirigido && a.origen === i && a.destino !== i) entrada++
+      if(!this.dirigido && a.destino === i && a.origen !== i) salida++
+
+    })
 
     return {
       nombre: v.nombre,
       entrada,
       salida
     }
+
   })
+
 },
 
 abrirModalMatriz() {
