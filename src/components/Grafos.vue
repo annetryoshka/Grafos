@@ -13,6 +13,7 @@
         <button @click="modo = 'eliminar'">Eliminar</button>
         <button @click="abrirModalMatriz">Ingresar matriz</button>
         <button @click="borrarTodo">Borrar todo</button>
+        <button @click="ejecutarJohnson" style="background-color: #6a1b9a; color: white;">Algoritmo Johnson</button>
         <button @click="exportarJSON">Exportar JSON</button>
         <button @click="$refs.fileInput.click()">Importar JSON</button>
           <input 
@@ -202,6 +203,28 @@
 
 </div>
 
+<div class="panel-johnson" v-if="resultadosJohnson" style="margin-top: 20px; padding: 20px; background: #2a1226; color: white;">
+  <h3>Resultados Algoritmo Johnson (Caminos Mínimos)</h3>
+  <table border="1" style="width: 100%; text-align: center; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>Desde \ Hacia</th>
+        <th v-for="v in vertices" :key="v.nombre">{{ v.nombre }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="(fila, i) in resultadosJohnson" :key="i">
+        <th style="background: #381932;">{{ vertices[i].nombre }}</th>
+        <td v-for="(dist, j) in fila" :key="j" :style="{ color: dist === '∞' ? '#ff6b6b' : '#63e6be' }">
+          {{ dist }}
+          
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <button @click="resultadosJohnson = null" style="margin-top: 10px;">Cerrar resultados</button>
+</div>
+
 
 <!-- MODAL MATRIZ -->
 <div v-if="mostrarModalMatriz" class="modal-overlay">
@@ -318,6 +341,10 @@
   </div>
 
 </div>
+
+<button @click="ejecutarJohnson" style="background-color: #6a1b9a; color: white;">Calcular Johnson</button>
+
+<input v-model="pesoTemporal" type="number" step="any" placeholder="Ej: -5" />
 </div>
 
 </template>
@@ -357,6 +384,8 @@ export default {
       mostrarModalMatriz: false,
       matrizEditable: [],
       tamanoMatriz: 0,
+
+      resultadosJohnson: null
     }
   },
 
@@ -898,6 +927,94 @@ incrementarConvergencia(){
   this.vectorConvergencia = this.calcularConvergencia()
 }
 
+  },
+
+  ejecutarJohnson() {
+    const n = this.vertices.length;
+    if (n === 0) return alert("Crea algunos vértices primero");
+
+    // 1. Paso Bellman-Ford: Creamos un nodo ficticio conectado a todos con peso 0
+    // Esto sirve para calcular los "potenciales" h[i]
+    const h = Array(n + 1).fill(0); 
+    const aristasConFicticio = [...this.aristas];
+    
+    // Añadimos aristas desde un nodo imaginario (índice n) a todos los demás
+    for (let i = 0; i < n; i++) {
+      aristasConFicticio.push({ origen: n, destino: i, peso: 0 });
+    }
+
+    // Corremos Bellman-Ford para detectar ciclos negativos y obtener h
+    const distanciasH = Array(n + 1).fill(Infinity);
+    distanciasH[n] = 0;
+
+    for (let i = 0; i < n; i++) { // Relajación V veces
+      aristasConFicticio.forEach(a => {
+        if (distanciasH[a.origen] !== Infinity && distanciasH[a.origen] + a.peso < distanciasH[a.destino]) {
+          distanciasH[a.destino] = distanciasH[a.origen] + a.peso;
+        }
+      });
+    }
+
+    // Detectar si hay ciclo negativo
+    let tieneCicloNegativo = false;
+    aristasConFicticio.forEach(a => {
+      if (distanciasH[a.origen] !== Infinity && distanciasH[a.origen] + a.peso < distanciasH[a.destino]) {
+        tieneCicloNegativo = true;
+      }
+    });
+
+    if (tieneCicloNegativo) {
+      alert("⚠️ Error: Se detectó un ciclo negativo. Johnson no puede procesar esto.");
+      return;
+    }
+
+    // 2. Paso Dijkstra: Ahora que tenemos los potenciales h, corremos Dijkstra desde cada nodo
+    const potenciales = distanciasH.slice(0, n);
+    const matrizFinal = [];
+
+    for (let i = 0; i < n; i++) {
+      matrizFinal.push(this.dijkstraJohnson(i, potenciales));
+    }
+
+    // Guardamos el resultado para mostrarlo en una tabla
+    this.resultadosJohnson = matrizFinal;
+  },
+
+  dijkstraJohnson(inicio, h) {
+    const n = this.vertices.length;
+    const dist = Array(n).fill(Infinity);
+    const visitado = Array(n).fill(false);
+    dist[inicio] = 0;
+
+    for (let i = 0; i < n; i++) {
+      let u = -1;
+      for (let j = 0; j < n; j++) {
+        if (!visitado[j] && (u === -1 || dist[j] < dist[u])) u = j;
+      }
+
+      if (u === -1 || dist[u] === Infinity) break;
+      visitado[u] = true;
+
+      this.aristas.forEach(a => {
+        let v = -1;
+        let pesoReal = a.peso;
+
+        if (a.origen === u) v = a.destino;
+        else if (!this.dirigido && a.destino === u) v = a.origen;
+
+        if (v !== -1) {
+          // LA MAGIA: Re-pesado de Johnson para que el peso siempre sea positivo
+          // w'(u,v) = w(u,v) + h(u) - h(v)
+          const pesoModificado = pesoReal + h[u] - h[v];
+          if (dist[u] + pesoModificado < dist[v]) {
+            dist[v] = dist[u] + pesoModificado;
+          }
+        }
+      });
+    }
+
+    // Devolvemos las distancias reales corrigiendo el re-pesado al final
+    return dist.map((d, idx) => d === Infinity ? "∞" : (d - h[inicio] + h[idx]).toFixed(2));
   }
 //end methods
 }
