@@ -8,21 +8,22 @@
       </div>
 
       <div class="header-center">
-        <button @click="modo = 'crear'">Crear vértice</button>
-        <button @click="modo = 'unir'">Unir vértices</button>
+      <div class="grupo">
+        <button @click="modo = 'crear'">Crear</button>
+        <button @click="modo = 'unir'">Unir</button>
         <button @click="modo = 'eliminar'">Eliminar</button>
-        <button @click="abrirModalMatriz">Ingresar matriz</button>
-        <button @click="borrarTodo">Borrar todo</button>
-        <button @click="ejecutarJohnson" style="background-color: #6a1b9a; color: white;">Algoritmo Johnson</button>
-        <button @click="exportarJSON">Exportar JSON</button>
-        <button @click="$refs.fileInput.click()">Importar JSON</button>
-          <input 
-            ref="fileInput"
-            type="file"
-            accept=".json"
-            @change="importarJSON"
-            style="display:none"
-          />
+        
+      </div>
+
+      <div class="grupo">
+        <button @click="borrarTodo" class="btn-danger">Borrar todo</button>
+        <button @click="ejecutarJohnson">Johnson</button>
+      </div>
+
+      <div class="grupo">
+        <button @click="exportarJSON">Exportar</button>
+        <button @click="$refs.fileInput.click()">Importar</button>
+      </div>
 
         <div class="opcion-grafo">
           <span class="label-texto">{{ dirigido ? "Dirigido" : "No dirigido" }}</span>
@@ -39,16 +40,6 @@
 
     </div> 
 
-    <div class="contador-convergencia">
-
-  Convergencia:
-
-  <div v-for="(v,i) in vectorConvergencia" :key="i">
-    {{ vertices[i]?.nombre }} → {{ v.toFixed(3) }}
-  </div>
-
-</div>
-
     <div
       class="lienzo"
       :class="{
@@ -60,6 +51,7 @@
       @mouseup="mouseupLienzo"
       @mousemove="mousemoveLienzo"
     >
+
 
 
   <div v-if="mostrarModalNombre" class="modal-overlay">
@@ -93,9 +85,9 @@
    @dblclick.stop="editarArista(index)">
   <path
     :d="calcularCurva(arista)"
-    stroke="white"
+    :stroke="esParteDelCamino(arista) ? '#ff1744' : 'white'"
     fill="transparent"
-    stroke-width="2"
+    :stroke-width="esParteDelCamino(arista) ? 4 : 2"
     :marker-end="arista.dirigido ? 'url(#arrow)' : ''"
     @click.stop="clickArista(index)"
     @dblclick.stop="editarArista(index)"
@@ -126,11 +118,11 @@
     {{ arista.peso }}
   </text>
 
+  </g>
 </g>
-</g>
-      </svg>
+  </svg>
 
-      <!-- VERTICES -->
+  <!-- VERTICES -->
       <div
   v-for="(vertice, index) in vertices"
   :key="index"
@@ -144,7 +136,7 @@
   {{ vertice.nombre }}
 </div>
 
-    </div
+    </div>
 
 <!-- PANEL INFERIOR -->
 <div class="panel-inferior">
@@ -215,10 +207,14 @@
     <tbody>
       <tr v-for="(fila, i) in resultadosJohnson" :key="i">
         <th style="background: #381932;">{{ vertices[i].nombre }}</th>
-        <td v-for="(dist, j) in fila" :key="j" :style="{ color: dist === '∞' ? '#ff6b6b' : '#63e6be' }">
-          {{ dist }}
-          
-        </td>
+          <td 
+            v-for="(dist, j) in fila.dist" :key="j" :style="{
+              color: dist === Infinity ? '#ff6b6b' : '#63e6be',
+              background: dist === obtenerMinimo(fila.dist) ? '#ffd70033' : 'transparent',
+              border: esDestinoFinal(i, j) ? '2px solid #ff1744' : 'none',
+              fontWeight: dist === obtenerMinimo(fila.dist) ? 'bold' : 'normal' }">
+            {{ dist === Infinity ? '∞' : dist.toFixed(2) }}
+           </td>
       </tr>
     </tbody>
   </table>
@@ -341,10 +337,6 @@
   </div>
 
 </div>
-
-<button @click="ejecutarJohnson" style="background-color: #6a1b9a; color: white;">Calcular Johnson</button>
-
-<input v-model="pesoTemporal" type="number" step="any" placeholder="Ej: -5" />
 </div>
 
 </template>
@@ -385,7 +377,8 @@ export default {
       matrizEditable: [],
       tamanoMatriz: 0,
 
-      resultadosJohnson: null
+      resultadosJohnson: null,
+      caminoResaltado: []
     }
   },
 
@@ -925,99 +918,165 @@ calcularConvergencia() {
 
 incrementarConvergencia(){
   this.vectorConvergencia = this.calcularConvergencia()
-}
-
-  },
+},
 
   ejecutarJohnson() {
-    const n = this.vertices.length;
-    if (n === 0) return alert("Crea algunos vértices primero");
+  const n = this.vertices.length;
 
-    // 1. Paso Bellman-Ford: Creamos un nodo ficticio conectado a todos con peso 0
-    // Esto sirve para calcular los "potenciales" h[i]
-    const h = Array(n + 1).fill(0); 
-    const aristasConFicticio = [...this.aristas];
-    
-    // Añadimos aristas desde un nodo imaginario (índice n) a todos los demás
-    for (let i = 0; i < n; i++) {
-      aristasConFicticio.push({ origen: n, destino: i, peso: 0 });
-    }
+  if (!this.dirigido) {
+    alert("Johnson solo funciona con grafos dirigidos");
+    return;
+  }
 
-    // Corremos Bellman-Ford para detectar ciclos negativos y obtener h
-    const distanciasH = Array(n + 1).fill(Infinity);
-    distanciasH[n] = 0;
+  if (n === 0) return alert("Crea algunos vértices primero");
 
-    for (let i = 0; i < n; i++) { // Relajación V veces
-      aristasConFicticio.forEach(a => {
-        if (distanciasH[a.origen] !== Infinity && distanciasH[a.origen] + a.peso < distanciasH[a.destino]) {
-          distanciasH[a.destino] = distanciasH[a.origen] + a.peso;
-        }
-      });
-    }
+  // Normalizar aristas (importante)
+  const aristas = this.aristas.map(a => ({
+    origen: a.origen,
+    destino: a.destino,
+    peso: Number(a.peso)
+  }));
 
-    // Detectar si hay ciclo negativo
-    let tieneCicloNegativo = false;
+  // Crear copia con nodo ficticio
+  const aristasConFicticio = [...aristas];
+
+  for (let i = 0; i < n; i++) {
+    aristasConFicticio.push({ origen: n, destino: i, peso: 0 });
+  }
+
+  // Bellman-Ford
+  const distanciasH = Array(n + 1).fill(Infinity);
+  distanciasH[n] = 0;
+
+  for (let i = 0; i < n; i++) {
     aristasConFicticio.forEach(a => {
-      if (distanciasH[a.origen] !== Infinity && distanciasH[a.origen] + a.peso < distanciasH[a.destino]) {
-        tieneCicloNegativo = true;
+      if (
+        distanciasH[a.origen] !== Infinity &&
+        distanciasH[a.origen] + a.peso < distanciasH[a.destino]
+      ) {
+        distanciasH[a.destino] = distanciasH[a.origen] + a.peso;
       }
     });
+  }
 
-    if (tieneCicloNegativo) {
-      alert("⚠️ Error: Se detectó un ciclo negativo. Johnson no puede procesar esto.");
+  // Detectar ciclo negativo
+  for (let a of aristasConFicticio) {
+    if (
+      distanciasH[a.origen] !== Infinity &&
+      distanciasH[a.origen] + a.peso < distanciasH[a.destino]
+    ) {
+      alert("⚠️ Error: Se detectó un ciclo negativo.");
       return;
     }
-
-    // 2. Paso Dijkstra: Ahora que tenemos los potenciales h, corremos Dijkstra desde cada nodo
-    const potenciales = distanciasH.slice(0, n);
-    const matrizFinal = [];
-
-    for (let i = 0; i < n; i++) {
-      matrizFinal.push(this.dijkstraJohnson(i, potenciales));
-    }
-
-    // Guardamos el resultado para mostrarlo en una tabla
-    this.resultadosJohnson = matrizFinal;
-  },
-
-  dijkstraJohnson(inicio, h) {
-    const n = this.vertices.length;
-    const dist = Array(n).fill(Infinity);
-    const visitado = Array(n).fill(false);
-    dist[inicio] = 0;
-
-    for (let i = 0; i < n; i++) {
-      let u = -1;
-      for (let j = 0; j < n; j++) {
-        if (!visitado[j] && (u === -1 || dist[j] < dist[u])) u = j;
-      }
-
-      if (u === -1 || dist[u] === Infinity) break;
-      visitado[u] = true;
-
-      this.aristas.forEach(a => {
-        let v = -1;
-        let pesoReal = a.peso;
-
-        if (a.origen === u) v = a.destino;
-        else if (!this.dirigido && a.destino === u) v = a.origen;
-
-        if (v !== -1) {
-          // LA MAGIA: Re-pesado de Johnson para que el peso siempre sea positivo
-          // w'(u,v) = w(u,v) + h(u) - h(v)
-          const pesoModificado = pesoReal + h[u] - h[v];
-          if (dist[u] + pesoModificado < dist[v]) {
-            dist[v] = dist[u] + pesoModificado;
-          }
-        }
-      });
-    }
-
-    // Devolvemos las distancias reales corrigiendo el re-pesado al final
-    return dist.map((d, idx) => d === Infinity ? "∞" : (d - h[inicio] + h[idx]).toFixed(2));
   }
-//end methods
+
+  // Potenciales (sin nodo ficticio)
+  const h = distanciasH.slice(0, n);
+
+// Dijkstra desde cada nodo
+const matrizFinal = [];
+let resultadoOrigen = null;
+
+for (let i = 0; i < n; i++) {
+  const resultado = this.dijkstraJohnson(i, h, aristas);
+  matrizFinal.push(resultado);
+
+  // guardamos el resultado del nodo origen (ej: A = 0)
+  if (i === 0) {
+    resultadoOrigen = resultado;
+  }
 }
+
+this.resultadosJohnson = matrizFinal;
+
+// reconstruir camino desde el origen hasta el último nodo
+const destino = n - 1;
+const camino = this.reconstruirCamino(resultadoOrigen.prev, destino);
+
+this.caminoResaltado = camino; },
+
+dijkstraJohnson(inicio, h, aristas) {
+  const n = this.vertices.length;
+  const dist = Array(n).fill(Infinity);
+  const visitado = Array(n).fill(false);
+  const prev = Array(n).fill(null);
+
+  dist[inicio] = 0;
+
+  for (let i = 0; i < n; i++) {
+    let u = -1;
+
+    for (let j = 0; j < n; j++) {
+      if (!visitado[j] && (u === -1 || dist[j] < dist[u])) {
+        u = j;
+      }
+    }
+
+    if (u === -1 || dist[u] === Infinity) break;
+
+    visitado[u] = true;
+
+    aristas.forEach(a => {
+      if (a.origen === u) {
+        const v = a.destino;
+
+        // peso modificado SOLO para cálculo
+        const pesoMod = a.peso + h[u] - h[v];
+
+        if (dist[u] + pesoMod < dist[v]) {
+          dist[v] = dist[u] + pesoMod;
+
+          // 👇 GUARDAS EL CAMINO REAL
+          prev[v] = u;
+        }
+      } 
+    });
+  }
+
+  // 🔥 CORREGIR distancias a reales
+  const distReal = dist.map((d, v) =>
+    d === Infinity ? Infinity : d - h[inicio] + h[v]
+  );
+
+  return { dist: distReal, prev };
+},
+
+esParteDelCamino(arista) {
+  for (let i = 0; i < this.caminoResaltado.length - 1; i++) {
+    if (
+      arista.origen === this.caminoResaltado[i] &&
+      arista.destino === this.caminoResaltado[i + 1]
+    ) {
+      return true;
+    }
+  }
+  return false;
+},
+
+reconstruirCamino(prev, destino) {
+  const camino = [];
+  let actual = destino;
+
+  while (actual !== null) {
+    camino.unshift(actual);
+    actual = prev[actual];
+  }
+
+  return camino;
+},
+
+obtenerMinimo(distancias) {
+  const numeros = distancias.filter(d => d !== Infinity);
+  if (numeros.length === 0) return Infinity;
+  return Math.min(...numeros);
+},
+
+esDestinoFinal(i, j) {
+  return i === 0 && j === this.vertices.length - 1;
+}
+}//end methods
+  }
+
 
 </script>
 
@@ -1048,7 +1107,8 @@ body {
   font-size: 45px;
   color: #c9c49c;
   justify-content: space-between; /* título a la izquierda, botón a la derecha */
-  padding: 25px 80px;
+  padding: 20px 20px;
+  flex-wrap: wrap;
   position: relative;
   background-color: #381932; /* color de fondo */
 }
@@ -1062,23 +1122,38 @@ body {
   letter-spacing: 4px;
 }
 
+@media (max-width: 768px) {
+  .header-left h1 {
+    font-size: 28px;
+  }
+}
+
 /* BOTONES CENTRALES */
 .header-center {
   display: flex;
-  gap: 20px;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .header-center button {
   background: transparent;
   border: 2px solid white;
   color: white;
-  padding: 8px 22px;
+  padding: 6px 14px;
   border-radius: 30px;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   font-family: fuente1, serif;
   font-size: 20px;
   transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .header-center button {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
 }
 
 .header-center button:hover {
@@ -1124,6 +1199,14 @@ body {
     display: flex;
     justify-content: center;
   }
+}
+
+.grupo {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.05);
 }
 
 .help-button{
@@ -1287,8 +1370,9 @@ body {
 }
 
 .lienzo {
-  width: 90%;
-  height: 500px;
+  width: 95%;
+  height: 60vh;
+  max-height: 600px;
   margin: 40px auto 0 auto;
   border: 2px solid white;
   border-radius: 20px;
@@ -1407,7 +1491,7 @@ body {
   border-radius:16px;
   color:white;
   box-shadow:0 10px 30px rgba(0,0,0,0.6);
-  width:600px;
+  width:90%;
   max-width:90vw;
 }
 
@@ -1492,7 +1576,8 @@ body {
 
 .panel-inferior{
   display: flex;
-  gap: 40px;
+  flex-direction: column;
+  gap: 20px;
   align-items: flex-start;
   margin-top: 25px;
   flex-wrap: wrap;
@@ -1503,6 +1588,7 @@ body {
 .matriz, .grados{
   width: 90%;
   margin: 30px auto;
+  overflow-x: auto;
   color: white;
   padding: 25px;
   flex: 2;
@@ -1533,6 +1619,7 @@ table{
   width:100%;
   border-collapse:separate;
   border-spacing:6px;
+  min-width: 600px; 
 }
 
 td, th{
@@ -1735,10 +1822,19 @@ path{
   animation: dibujarLinea 0.4s ease forwards;
 }
 
+.btn-danger{
+  border: 2px solid #ff1744;
+  color: #ff1744;
+}
+
+.btn-danger:hover{
+  background: #ff1744;
+  color: white;
+}
+
 @keyframes dibujarLinea{
   to{
     stroke-dashoffset: 0;
   }
 }
-
 </style>
